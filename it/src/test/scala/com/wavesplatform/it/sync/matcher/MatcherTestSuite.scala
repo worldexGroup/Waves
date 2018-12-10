@@ -45,16 +45,6 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
     val order1         = matcherNode.prepareOrder(aliceAcc, aliceWavesPair, SELL, aliceSellAmount, 2000.waves, version = orderVersion, timeToLive = 2.minutes)
     val order1Response = matcherNode.placeOrder(order1)
 
-    "can't place an order with the same timestamp" in {
-      val rawOrder2 = order1 match {
-        case x: OrderV1 => x.copy(amount = x.amount + 1)
-        case x: OrderV2 => x.copy(amount = x.amount + 1)
-      }
-
-      val order2 = Order.sign(rawOrder2, aliceAcc)
-      matcherNode.expectIncorrectOrderPlacement(order2, 400, "OrderRejected") shouldBe true
-    }
-
     "assert addresses balances" in {
       aliceNode.assertAssetBalance(aliceAcc.address, aliceAsset, AssetQuantity)
       matcherNode.assertAssetBalance(matcherAcc.address, aliceAsset, 0)
