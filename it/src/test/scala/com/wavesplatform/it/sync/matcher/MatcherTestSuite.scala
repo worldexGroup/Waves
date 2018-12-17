@@ -45,6 +45,12 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
     val order1         = matcherNode.prepareOrder(aliceAcc, aliceWavesPair, SELL, aliceSellAmount, 2000.waves, version = orderVersion, timeToLive = 2.minutes)
     val order1Response = matcherNode.placeOrder(order1)
 
+    // Bob issues new asset
+    val bobWavesPair = AssetPair(
+      amountAsset = ByteStr.decodeBase58(bobAsset2).toOption,
+      priceAsset = None
+    )
+
     "can't place an order with the same timestamp" in {
       val rawOrder2 = order1 match {
         case x: OrderV1 => x.copy(amount = x.amount + 1)
@@ -241,17 +247,6 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         updatedAliceBalance should be(aliceBalance - matcherFee + 2000 * 100)
       }
 
-      "market status" in {
-        val resp = matcherNode.marketStatus(aliceWavesPair)
-
-        resp.lastPrice shouldBe Some(2000.waves)
-        resp.lastSide shouldBe Some("buy") // Same type as order5
-        resp.bid shouldBe Some(2000.waves)
-        resp.bidAmount shouldBe Some(30)
-        resp.ask shouldBe None
-        resp.askAmount shouldBe None
-      }
-
       "request order book for blacklisted pair" in {
         val f = matcherNode.matcherGetStatusCode(s"/matcher/orderbook/$ForbiddenAssetId/WAVES", 404)
         f.message shouldBe s"Invalid Asset ID: $ForbiddenAssetId"
@@ -280,12 +275,6 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       }
 
       "trader can buy waves for assets with order without having waves" in {
-        // Bob issues new asset
-        val bobWavesPair = AssetPair(
-          amountAsset = ByteStr.decodeBase58(bobAsset2).toOption,
-          priceAsset = None
-        )
-
         val bobBalance = matcherNode.accountBalances(bobAcc.address)._1
         matcherNode.assertAssetBalance(aliceAcc.address, bobAsset2, 0)
         matcherNode.assertAssetBalance(matcherAcc.address, bobAsset2, 0)
@@ -315,6 +304,17 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         matcherNode.cancelOrder(bobAcc, bobWavesPair, order8.message.id).status should be("OrderCanceled")
         val transferBobId = aliceNode.transfer(aliceAcc.address, bobAcc.address, transferAmount, minFee, None, None, 2).id
         matcherNode.waitForTransaction(transferBobId)
+      }
+
+      "market status" in {
+        val resp = matcherNode.marketStatus(bobWavesPair)
+
+        resp.lastPrice shouldBe None
+        resp.lastSide shouldBe None
+        resp.bid shouldBe Some(2000.waves)
+        resp.bidAmount shouldBe Some(30)
+        resp.ask shouldBe None
+        resp.askAmount shouldBe None
       }
     }
   }
